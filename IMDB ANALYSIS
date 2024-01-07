@@ -1,0 +1,112 @@
+1. distribution of IMDB ratings
+
+import pandas as pd
+from tqdm.auto import tqdm
+
+file_path = 'imdb_top_1000.csv'
+df = pd.read_csv(file_path, encoding='utf-8')
+
+# Visualize the distribution of IMDB ratings
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+sns.set(style='whitegrid')
+plt.figure(figsize=(10, 6))
+sns.histplot(df['IMDB_Rating'], bins=20, kde=True)
+plt.title('Distribution of IMDB Ratings')
+plt.xlabel('IMDB Rating')
+plt.ylabel('Frequency')
+plt.show()
+
+2. Top directors by gross
+
+from tqdm.auto import tqdm
+tqdm.pandas()
+
+df['Gross'] = df['Gross'].replace({'\$': '', ',': ''}, regex=True).astype(float)
+df['Runtime'] = df['Runtime'].str.extract('(\d+)').astype(float)
+df['Released_Year'] = df['Released_Year'].progress_apply(lambda x: x if len(str(x)) == 4 else float('nan'))
+df['Released_Year'] = df['Released_Year'].astype(float)
+
+# Drop rows with NaN values in 'Director' or 'Gross' as they are essential for our analysis
+# Also, drop rows with NaN in 'Released_Year' as we need it for the genre analysis
+
+df_cleaned = df.dropna(subset=['Director', 'Gross', 'Released_Year'])
+
+# Group by director and calculate the average gross 
+
+director_gross = df_cleaned.groupby('Director')['Gross'].mean().sort_values(ascending=False).head(20)
+
+print(director_gross)
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+sns.set_style('whitegrid')
+plt.figure(figsize=(14, 8))
+
+sns.barplot(x=director_gross.values, y=director_gross.index)
+plt.title('Top 20 Directors by Average Gross Earnings')
+plt.xlabel('Average Gross Earnings ($)')
+plt.ylabel('Director')
+plt.show()
+
+3. Genre popularity over the years
+# Split and explode the 'Genre' column
+exploded_genres = df_cleaned.assign(Genre=df_cleaned['Genre'].str.split(', ')).explode('Genre')
+
+# Group by year and genre, then count the number of movies
+genre_popularity = exploded_genres.groupby(['Released_Year', 'Genre']).size().reset_index(name='Count')
+
+# Pivot the data to have years as the index and genres as columns
+genre_popularity_pivot = genre_popularity.pivot(index='Released_Year', columns='Genre', values='Count').fillna(0)
+
+# Plot the data
+plt.figure(figsize=(15, 10))
+sns.heatmap(genre_popularity_pivot, cmap='viridis', linewidths=.5)
+plt.title('Genre Popularity Over the Years')
+plt.xlabel('Genre')
+plt.ylabel('Year')
+plt.show()
+
+4. Correlation
+# Impact of movie length on ratings and earnings
+runtime_ratings_earnings = df_cleaned[['Runtime', 'IMDB_Rating', 'Gross']].dropna()
+runtime_ratings_earnings_corr = runtime_ratings_earnings.corr(method='pearson')
+
+5. Visualize the correlation using a heatmap
+plt.figure(figsize=(10, 8))
+sns.heatmap(runtime_ratings_earnings_corr, annot=True, cmap='coolwarm', fmt='.2f', linewidths=.5)
+plt.title('Correlation between Movie Length, IMDB Ratings, and Gross Earnings')
+plt.show()
+
+6. Average IMDb rating for each genre
+genre_ratings = df_cleaned.assign(Genre=df_cleaned['Genre'].str.split(', ')).explode('Genre')
+average_genre_ratings = genre_ratings.groupby('Genre')['IMDB_Rating'].mean().sort_values(ascending=False).reset_index()
+average_genre_ratings
+
+7. Showing gross trends over the years.
+import matplotlib.pyplot as plt
+total_gross_by_year = df.groupby('Released_Year')['Gross'].sum()
+total_gross_by_year = total_gross_by_year.sort_index()
+
+# Plotting the total gross earnings over the years.
+plt.figure(figsize=(14,7))
+plt.plot(total_gross_by_year.index, total_gross_by_year.values, marker='o')
+plt.title('Total Gross Earnings Over the Years')
+plt.xlabel('Year')
+plt.ylabel('Total Gross Earnings')
+plt.grid(True)
+plt.xticks(rotation=90)
+plt.tight_layout()
+plt.show()
+
+8.Correlation between IMDb ratings and gross earnings.
+
+plt.figure(figsize=(10,6))
+plt.scatter(df['IMDB_Rating'], df['Gross'], alpha=0.5)
+plt.title('Relationship between IMDb Rating and Gross Earnings')
+plt.xlabel('IMDb Rating')
+plt.ylabel('Gross Earnings ($)')
+plt.grid(True)
+plt.show()
